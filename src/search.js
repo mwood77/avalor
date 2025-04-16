@@ -1,7 +1,7 @@
+const performance = require('perf_hooks').performance;
+
 const config = require('./config.js');
 const renderGridPath = require('./renderPath.js');
-
-const performance = require('perf_hooks').performance;
 
 /**
  * Executes a beam search algorithm on a grid to find the optimal path based on the given parameters.
@@ -29,7 +29,7 @@ const runSearch = (gridSize ,startX, startY, maxRuntime, maxSteps, beamWidth, ma
             this.steps = steps;
             this.discrepancy = discrepancy;
             this.path = [...path, [x, y]];
-            this.totalValue = value + grid[y][x];
+            this.totalValue = value + grid[y][x];   // accumulator; total value of path _so far_ (parent value + current node value)
 
             if (!Array.isArray(grid) || !grid[y] || grid[y][x] === undefined) {
                 throw new Error(`Invalid grid reference at (${x},${y})`);
@@ -37,77 +37,74 @@ const runSearch = (gridSize ,startX, startY, maxRuntime, maxSteps, beamWidth, ma
         }
 
         score() {
-            return this.totalValue; // accumulator
+            return this.totalValue;
           }
     }
 
-    const seenNodes = new Set();
-    
-    const isValid = (x, y) => (
-        x >= 0 && y >= 0 && x < gridSize && y < gridSize
-    );
-    
+    const seenNodes = new Set();    // we aren't revisitng nodes (see caveats in readme)
+
+    const isValidWithinGridBounds = (x, y) => {
+        if (x < 0 || x >= gridSize) return false;
+        if (y < 0 || y >= gridSize) return false;
+        return true;
+    };
+
     const startTime = performance.now();
     let beam = [new Node(parseInt(startX), parseInt(startY))];
     let steps = 0;
-    
-    while (performance.now() - startTime < maxRuntime && steps < maxSteps) {
+
+    while (performance.now() - startTime < maxRuntime && steps < maxSteps) {    // each iteration is a "step"
         const nextBeam = [];
-        
+
         for (const node of beam) {
             const children = [];
-            
-            for (const [dx, dy] of directions) {
+
+            for (const [dx, dy] of directions) {    // explore all directions
                 const nx = node.x + dx;
                 const ny = node.y + dy;
-                
-                if (!isValid(nx, ny)) continue;
+
+                if (!isValidWithinGridBounds(nx, ny)) continue;
 
                 const seenKey = `${nx},${ny}`;
-                if (seenNodes.has(seenKey)) continue;
+                if (seenNodes.has(seenKey)) continue;   // short circuit if already seen
                 seenNodes.add(seenKey);
-                
+
                 const newNode = new Node(nx, ny, node.steps + 1, node.discrepancy, node.path, node.totalValue);
                 children.push(newNode);
             }
-            
-            // Sort children by score descending; highest value first
-            children.sort((a, b) => b.score() - a.score());
-            
+
+            children.sort((a, b) => b.score() - a.score());     // sort children by highest score; descending
+
             for (let i = 0; i < children.length && i < beamWidth; i++) {
-                const c = children[i];
-                const discrepancy = i === 0 ? node.discrepancy : node.discrepancy + 1;
+                const child = children[i];
+                const discrepancy = i === 0 ? node.discrepancy : node.discrepancy + 1;  // best child inherits parent's discrepancy; all others are parent's + increment
                 if (discrepancy <= maxDiscrepancy) {
-                    c.discrepancy = discrepancy;
-                    nextBeam.push(c);
+                    child.discrepancy = discrepancy;
+                    nextBeam.push(child);
                 }
             }
         }
-        
-        if (nextBeam.length === 0) nextBeam.push(...beam);
-        
+
+        if (nextBeam.length === 0) nextBeam.push(...beam);  // if no children, keep the current beam
+
         beam = nextBeam;
         steps++;
     }
 
-    const best = beam[0];
-    
+    const best = beam[0];   // winner winner chicken dinner
+
     console.log(config.loggingColours.green, `  Results:
         - Steps taken: ${steps}
-        - Final beam size: ${beam.length}
+        - Number of available paths: ${beam.length}
         - Search completed in: ${Math.round(performance.now() - startTime)}ms
         - Total value of "best path:" ${best?.totalValue}
     `);
 
-    console.log(config.loggingColours.green, `  Sample path:
+    console.log(config.loggingColours.green, `  Best path:
         ${best?.path.map(([x, y]) => `(${x},${y})`).join(' -> ')}
     `);
 
-    console.log(config.loggingColours.default, `  Want to see the path? Uncomment renderGridPath() line in search.js`);
-    console.log(config.loggingColours.default, `  It renders 1:1, so be careful with large grids`);
-    
-    // Uncomment me!
-    renderGridPath(grid, best?.path, grid[0].length);
+    if (config.shouldRenderGraph) renderGridPath(grid, best?.path, grid[0].length);
 };
 
 module.exports = runSearch;

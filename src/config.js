@@ -26,8 +26,10 @@ const config = {
         'magenta': '\x1b[35m',
         'cyan': '\x1b[36m',
         'redInvert': '\x1b[97m\x1b[41m',
-    }
+    },
+    mapsDirectory: '/grids/',
+    shouldRenderGraph: true,
+    gridDelimiter: /\s+/,   // whitespace; tabs, spaces, newlines...
 };
 
-// this ain't a module, dawg
 module.exports = config;
