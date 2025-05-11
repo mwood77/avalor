@@ -6,7 +6,6 @@
 - This was relatively challenging and outside of my comfort zone; I've never done pathfinding.
 - It took me a couple hours or reading to figure out how best to approach this.
 - I decided to develop this more as a "program" rather than as a straight algo, so you'll have to give me some liberty there.
-- Was definitely an interesting task!
 
 ## Algo approach
 - Like I said, I'm relatively unfamiliar with this kind of work. At a glance, it's apparent that it's a 2D array traversal problem.
